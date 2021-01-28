@@ -169,7 +169,7 @@ comparetop10ords_relative = prune_taxa(Top10ords_relative, relative_ord)
 
 plot_bar(physeq = comparetop10ords_relative, fill = "Order") + scale_fill_manual(values=c25)
 
-ggsave("~/Documents/GitHub/palmyra_edna/figures/barplot_orders",device="pdf")
+ggsave("~/Documents/GitHub/palmyra_edna/figures/barplot_orders.pdf",device="pdf")
 
 # Plotting by relative frequency
 
@@ -177,7 +177,7 @@ plotto = transform_sample_counts(comparetop10ords_relative, function(OTU) OTU / 
 
 plot_bar(physeq = plotto, fill = "Order") + scale_fill_manual(values=c25)
 
-
+ggsave("~/Documents/GitHub/palmyra_edna/figures/barplot_orders_relative.pdf",device="pdf")
 
 #### Plotting 10 most common orders(absolute frequency) at type level
 palmyra_typemerge_order = tax_glom(palmyra_typemerge, "Order")
