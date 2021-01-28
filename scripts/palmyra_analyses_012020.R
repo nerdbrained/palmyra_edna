@@ -15,6 +15,7 @@ library(cluster)
 library(tidyverse)
 library(ranacapa)
 library(picante)
+library(nVennR)
 
 
 ##qiime2R is needed to import qiime2 artifacts directly into R. all of these should be in the qiime2 output, just need to specify file paths
@@ -197,11 +198,15 @@ comparetop10ords_relative = prune_taxa(Top10ords_relative, relative_ord)
 
 plot_bar(physeq = comparetop10ords_relative, fill = "Order") + scale_fill_manual(values=c25)
 
+ggsave("~/Documents/GitHub/palmyra_edna/figures/barplot_orders_type.pdf",device="pdf")
+
 # Plotting by relative frequency
 
 plotto = transform_sample_counts(comparetop10ords_relative, function(OTU) OTU / sum(OTU))
 
 plot_bar(physeq = plotto, fill = "Order") + scale_fill_manual(values=c25)
+
+ggsave("~/Documents/GitHub/palmyra_edna/figures/barplot_orders_type_relative.pdf",device="pdf")
 
 #### Rarefaction curves (ASV-level) by sample
 options(scipen=10000)
@@ -264,7 +269,7 @@ sesstax=colnames(otudf[which(otudf[3,]>0)])
 
 watertax=colnames(otudf[which(otudf[4,]>0)])
 
-ordvenn<-plotVenn(list(Sediment1=sed1tax,Water=watertax,Sessile=sesstax,Sediment2=sed2tax),outFile="~/Desktop/ordervenn.svg",setColors=c("purple","blue","green","gold"), borderWidth=3, opacity=0.2)
+ordvenn<-plotVenn(list(Sediment1=sed1tax,Water=watertax,Sessile=sesstax,Sediment2=sed2tax),outFile="~/Documents/GitHub/palmyra_edna/figures/ordervenn.svg",setColors=c("purple","blue","green","gold"), borderWidth=3, opacity=0.2)
 
 
 
@@ -280,6 +285,7 @@ watertax=colnames(otudf[which(otudf[4,]>0)])
 
 otuvenn<-plotVenn(list(Sediment1=sed1tax,Water=watertax,Sessile=sesstax,Sediment2=sed2tax),outFile="~/Desktop/otuvenn.svg",setColors=c("purple","blue","green","gold"), borderWidth=3, opacity=0.2)
 
+ggsave("~/Documents/GitHub/palmyra_edna/figures/otu_venn.pdf",device="pdf")
 
 
 
