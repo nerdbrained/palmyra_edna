@@ -190,7 +190,7 @@ orderfreqsort=orderfreqsum[order(orderfreqsum$freqs,decreasing=TRUE),]
 
 head(orderfreqsort,10)
 
-write.csv(orderfreqsort,file="~/Desktop/palmyra_qiime/manuscript/tables/palmyra_ordertable_types.csv")
+write.csv(orderfreqsort,file="~/Documents/GitHub/palmyra_edna/results/palmyra_ordertable_types.csv")
 
 Top10ords_relative = names(sort(taxa_sums(relative_ord), TRUE)[1:10])
 comparetop10ords_relative = prune_taxa(Top10ords_relative, relative_ord)
@@ -222,7 +222,7 @@ tree=phy_tree(palmyra_h03_tipglom)
 
 pd_sample=pd(OTU,tree)
 
-write.csv(pd_sample,file="~/Desktop/palmyra_qiime/manuscript/tables/palmyra_pd_samples.csv")
+write.csv(pd_sample,file="~/Documents/GitHub/palmyra_edna/results/palmyra_pd_samples.csv")
 
 
 OTU <- as(otu_table(palmyra_h03_tipglom_type), "matrix")
@@ -230,25 +230,25 @@ tree=phy_tree(palmyra_h03_tipglom_type)
 
 pd_type=pd(OTU,tree)
 
-write.csv(pd_type,file="~/Desktop/palmyra_qiime/manuscript/tables/palmyra_pd_types.csv")
+write.csv(pd_type,file="~/Documents/GitHub/palmyra_edna/results/palmyra_pd_types.csv")
 
 
 ### Other diversity metrics for different taxonomic/classification schemes
 
 div_samp_phy=estimate_richness(palmyra_sampmerge_phylum,measures=c("Observed","Chao","Shannon","ACE"))
-write.csv(div_samp_phy,file="~/Desktop/palmyra_qiime/manuscript/tables/div_samp_phy.csv")
+write.csv(div_samp_phy,file="~/Documents/GitHub/palmyra_edna/results/div_samp_phy.csv")
 div_samp_ord=estimate_richness(palmyra_sampmerge_order,measures=c("Observed","Chao","Shannon","ACE"))
-write.csv(div_samp_ord,file="~/Desktop/palmyra_qiime/manuscript/tables/div_samp_ord.csv")
+write.csv(div_samp_ord,file="~/Documents/GitHub/palmyra_edna/results/tables/div_samp_ord.csv")
 div_samp_otu=estimate_richness(palmyra_h03_tipglom,measures=c("Observed","Chao","Shannon","ACE"))
-write.csv(div_samp_otu,file="~/Desktop/palmyra_qiime/manuscript/tables/div_samp_otu.csv")
+write.csv(div_samp_otu,file="~/Documents/GitHub/palmyra_edna/results/div_samp_otu.csv")
 
 
 div_type_phy=estimate_richness(palmyra_typemerge_phylum,measures=c("Observed","Chao","Shannon","ACE"))
-write.csv(div_type_phy,file="~/Desktop/palmyra_qiime/manuscript/tables/div_type_phy.csv")
+write.csv(div_type_phy,file="~/Documents/GitHub/palmyra_edna/results/div_type_phy.csv")
 div_type_ord=estimate_richness(palmyra_typemerge_order,measures=c("Observed","Chao","Shannon","ACE"))
-write.csv(div_type_ord,file="~/Desktop/palmyra_qiime/manuscript/tables/div_type_ord.csv")
+write.csv(div_type_ord,file="~/Documents/GitHub/palmyra_edna/results/div_type_ord.csv")
 div_type_otu=estimate_richness(palmyra_h03_tipglom_type,measures=c("Observed","Chao","Shannon","ACE"))
-write.csv(div_type_otu,file="~/Desktop/palmyra_qiime/manuscript/tables/div_type_otu.csv")
+write.csv(div_type_otu,file="~/Documents/GitHub/palmyra_edna/results/div_type_otu.csv")
 
 
 ### do Venn on OTUs + orders?
