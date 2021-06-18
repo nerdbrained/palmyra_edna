@@ -1,1 +1,0 @@
-#student A = kid A???
