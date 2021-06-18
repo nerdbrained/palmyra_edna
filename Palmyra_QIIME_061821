@@ -1,0 +1,269 @@
+################# Palmyra QIIME2 16S Pipeline #############
+######### Brendan Reid - based on oyster pipeline by Melissa Ingala (mingala@amnh.org)
+######### update: 18 June 2021
+
+##### installing most recent version of QIIME on CARSON (private cluster in Fitzpatrick lab at MSU)
+
+wget https://data.qiime2.org/distro/core/qiime2-2020.11-py36-linux-conda.yml
+conda env create -n qiime2-2020.11 --file qiime2-2020.11-py36-linux-conda.yml
+
+##### always activate before running qiime
+
+source /opt/conda/bin/activate qiime2-2020.11
+
+##### installing rescript + dependencies
+
+conda install -c conda-forge -c bioconda -c qiime2 -c defaults xmltodict
+pip install git+https://github.com/bokulich-lab/RESCRIPt.git
+
+##### get dat classifier
+
+qiime rescript get-silva-data \
+    --p-version '138' \
+    --p-target 'SSURef_NR99' \
+    --p-include-species-labels \
+    --o-silva-sequences silva-138-ssu-nr99-seqs.qza \
+    --o-silva-taxonomy silva-138-ssu-nr99-tax.qza
+
+##### cull low-qual sequences (≥5 ambiguous bases, homopolymer runs ≥ 8 bp)
+
+qiime rescript cull-seqs \
+    --i-sequences silva-138-ssu-nr99-seqs.qza \
+    --o-clean-sequences silva-138-ssu-nr99-seqs-cleaned.qza
+
+##### filter by length and taxonomy
+##### using only eukaryotes with length >1400
+
+qiime rescript filter-seqs-length-by-taxon \
+    --i-sequences silva-138-ssu-nr99-seqs-cleaned.qza \
+    --i-taxonomy silva-138-ssu-nr99-tax.qza \
+    --p-labels Eukaryota \
+    --p-min-lens 1400 \
+    --o-filtered-seqs silva-138-ssu-nr99-seqs-filt1400euk.qza \
+    --o-discarded-seqs silva-138-ssu-nr99-seqs-discard.qza 
+
+##### dereplicate sequences and taxonomy
+
+qiime rescript dereplicate \
+    --i-sequences silva-138-ssu-nr99-seqs-filt1400euk.qza  \
+    --i-taxa silva-138-ssu-nr99-tax.qza \
+    --p-rank-handles 'silva' \
+    --p-mode 'uniq' \
+    --o-dereplicated-sequences silva-138-ssu-nr99-seqs-derep-uniq.qza \
+    --o-dereplicated-taxa silva-138-ssu-nr99-tax-derep-uniq.qza
+
+##### full-length classifier
+
+qiime feature-classifier fit-classifier-naive-bayes \
+  --i-reference-reads  silva-138-ssu-nr99-seqs-derep-uniq.qza \
+  --i-reference-taxonomy silva-138-ssu-nr99-tax-derep-uniq.qza \
+  --o-classifier silva-138-ssu-nr99-full-classifier.qza
+
+##### extract amplicon-specific regions
+
+qiime feature-classifier extract-reads \
+    --i-sequences silva-138-ssu-nr99-seqs-derep-uniq.qza \
+    --p-f-primer AACCTGGTTGATCCTGCCAGT \
+    --p-r-primer GCTATTGGAGCTGGAATTAC \
+    --p-n-jobs 2 \
+    --p-read-orientation 'forward' \
+    --o-reads silva-138-ssu-nr99-seqs-V1V3.qza
+
+##### dereplicate again
+
+qiime rescript dereplicate \
+    --i-sequences silva-138-ssu-nr99-seqs-V1V3.qza \
+    --i-taxa silva-138-ssu-nr99-tax-derep-uniq.qza \
+    --p-rank-handles 'silva' \
+    --p-mode 'uniq' \
+    --o-dereplicated-sequences silva-138-ssu-nr99-seqs-V1V3-uniq.qza \
+    --o-dereplicated-taxa  silva-138-ssu-nr99-tax-V1V3-derep-uniq.qza
+
+##### amplicon-specific classifier
+
+qiime feature-classifier fit-classifier-naive-bayes \
+    --i-reference-reads silva-138-ssu-nr99-seqs-V1V3-uniq.qza \
+    --i-reference-taxonomy silva-138-ssu-nr99-tax-V1V3-derep-uniq.qza \
+    --o-classifier silva-138-ssu-nr99-V1V3-classifier.qza
+
+
+
+############################ DATA PRE-PROCESSING #############################
+# Need to mine out barcodes and sort reads. Done using MrDNA Fastq Processor
+----> this is a Windows executable, find a PC to execute!
+#generates a file called qiime2 with forward.fastq, reverse.fastq, barcodes.fastq
+#import these to QIIME2
+
+############################ IMPORT TO QIIME2 #############################
+
+qiime tools import \
+  --type EMPPairedEndSequences \
+  --input-path emp-paired-end-sequences/ \
+  --output-path emp-paired-end-sequences.qza
+
+############Demultiplex################# 
+###### Melissa used cutadapt for the final version of the oyster pipeline but this gave me many fewer sequences per indiv than the previous demultiplexing strategy, so I just used the original qiiime demux procedure. I imported as paired-end but demultiplexed as single-end
+
+############Demultiplex##############
+qiime demux emp-single \
+  --i-seqs emp-paired-end-sequences.qza \
+  --m-barcodes-file sample-metadata.tsv \
+  --m-barcodes-column BarcodeSequence \
+  --o-per-sample-sequences single-end-demux.qza \
+  --p-no-golay-error-correction \
+  --output-dir wonkssingle
+
+
+################## Quality Filtering & Feature Table Generation ################
+####### I ran everything using trimming to either 200 or 230 bp - 230 looked fine
+####### These steps were run separately on all 3 runs
+####### DADA2 ################
+qiime dada2 denoise-single \
+  --i-demultiplexed-seqs single-end-demux.qza \
+  --p-trim-left 30 \
+  --p-trunc-len 230 \
+  --o-representative-sequences rep-seqs-dada2_230.qza \
+  --o-table table-dada2_230.qza \
+  --o-denoising-stats stats-dada2_230.qza
+  
+qiime metadata tabulate \
+  --m-input-file stats-dada2_230.qza \
+  --o-visualization stats-dada2_230.qzv
+
+qiime dada2 denoise-single \
+  --i-demultiplexed-seqs single-end-demux.qza \
+  --p-trim-left 60 \
+  --p-trunc-len 200 \
+  --o-representative-sequences rep-seqs-dada2_200.qza \
+  --o-table table-dada2_200.qza \
+  --o-denoising-stats stats-dada2_200.qza
+  
+qiime metadata tabulate \
+  --m-input-file stats-dada2_200.qza \
+  --o-visualization stats-dada2_200.qzv
+  
+
+
+############# Merging all 3 runs !!! ##############
+
+mkdir qiime2_merge
+cp qiime2_030215/table-dada2_230.qza qiime2_merge/table-1.qza
+cp qiime2_120115/table-dada2_230.qza qiime2_merge/table-2.qza
+cp qiime2_030216/table-dada2_230.qza qiime2_merge/table-3.qza
+
+cp qiime2_030215/rep-seqs-dada2_230.qza qiime2_merge/rep-seqs-1.qza
+cp qiime2_120115/rep-seqs-dada2_230.qza qiime2_merge/rep-seqs-2.qza
+cp qiime2_030216/rep-seqs-dada2_230.qza qiime2_merge/rep-seqs-3.qza
+
+cd qiime2_merge
+
+qiime feature-table merge \
+  --i-tables table-1.qza \
+  --i-tables table-2.qza \
+  --i-tables table-3.qza \
+  --o-merged-table table.qza
+
+qiime feature-table merge-seqs \
+  --i-data rep-seqs-1.qza \
+  --i-data rep-seqs-2.qza \
+  --i-data rep-seqs-3.qza \
+  --o-merged-data rep-seqs.qza
+
+
+
+############################# Generate Phylogenetic Tree ##############################
+qiime phylogeny align-to-tree-mafft-fasttree \
+  --i-sequences rep-seqs.qza \
+  --o-alignment aligned-rep-seqs.qza \
+  --o-masked-alignment masked-aligned-rep-seqs.qza \
+  --o-tree unrooted-tree.qza \
+  --o-rooted-tree rooted-tree.qza
+  
+############################ Core Diversity Metrics #####################################
+qiime diversity core-metrics-phylogenetic \
+  --i-phylogeny rooted-tree.qza \
+  --i-table table.qza \
+  --p-sampling-depth 40000 \
+  --m-metadata-file metadata.tsv \
+  --output-dir core-metrics-results_40K
+
+########################## Alpha Rarefaction Plot ###################################
+qiime diversity alpha-rarefaction \
+  --i-table table.qza \
+  --i-phylogeny rooted-tree.qza \
+  --p-max-depth 40000 \
+  --m-metadata-file metadata.tsv \
+  --o-visualization alpha-rarefaction_40K.qzv
+
+
+
+
+########## Taxonomy (amplicon-specific classifier) ############
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier silva-138-ssu-nr99-V1V3-classifier.qza \
+  --i-reads rep-seqs.qza \
+  --o-classification 16S-taxonomy-silva138-V1V3.qza
+  
+qiime taxa barplot \
+--i-table table.qza \
+--i-taxonomy 16S-taxonomy-silva138-V1V3.qza  \
+--m-metadata-file metadata.tsv \
+--o-visualization 16S_taxonomic_barplot-silva-V1V3.qzv
+
+
+
+
+########## Taxonomy (amplicon-specific classifier) ############
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier silva-138-ssu-nr99-full-classifier.qza \
+  --i-reads rep-seqs.qza \
+  --o-classification 16S-taxonomy-silva138-full.qza
+  
+qiime taxa barplot \
+--i-table table.qza \
+--i-taxonomy 16S-taxonomy-silva138-full.qza  \
+--m-metadata-file metadata.tsv \
+--o-visualization 16S_taxonomic_barplot-silva-full.qzv
+
+
+
+
+########## Taxonomy (amplicon-specific classifier) ############
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier silva-138-ssu-nr99-subrank-V1V3-classifier.qza \
+  --i-reads rep-seqs.qza \
+  --o-classification 16S-taxonomy-silva138-subrank-V1V3.qza
+  
+qiime taxa barplot \
+--i-table table.qza \
+--i-taxonomy 16S-taxonomy-silva138-V1V3.qza  \
+--m-metadata-file metadata.tsv \
+--o-visualization 16S_taxonomic_barplot-silva-V1V3.qzv
+
+
+
+
+
+########## BIOM file (amplicon-specific classifier)  - not sure if we need this since physeq uses the raw *taxonomy*.qza file ###########
+
+qiime tools export --input-path table.qza --output-path exported-silva138-V1V3
+
+qiime tools export --input-path 16S-taxonomy-silva138-V1V3.qza --output-path exported-silva138-V1V3
+
+#Need to duplicate the taxonomy file and edit the header to use in phyloseq
+cd exported-silva138-V1V3/
+cp taxonomy.tsv biom-taxonomy.tsv
+cd ..
+
+#had to add header fields!
+
+biom add-metadata -i exported-silva138-V1V3/feature-table.biom -o 16S-table-with-taxonomy-silva138-V1V3.biom --observation-metadata-fp exported-silva138-V1V3/biom-taxonomy.tsv --sc-separated taxonomy --observation-header Feature,ID,Taxon,Confidence
+
+
+
+
+###sidebar - how to get dumltiplexed fastqs using QIIME2
+qiime tools export --input-path demultiplexed-seqs.qza  --output-path oyster-demultiplexed/
